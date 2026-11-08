@@ -205,7 +205,7 @@ extern	int (*GPU_printf)(const char *fmt, ...);
 #define getcode(p)   		(u_char)(((P_TAG *)(p))->code)
 
 #if USE_PGXP && USE_EXTENDED_PRIM_POINTERS
-#define setpgxpindex(p, i)	(((P_TAG *)(p))->pgxp_index = (u_short)(i))
+#define setpgxpindex(p, i)	(((P_TAG *)(p))->pgxp_index = (u_int)(i) & 0xFFFFFF)
 #define addPrim(ot, p)		setaddr(p, getaddr(ot)), setaddr(ot, p), setpgxpindex(p, PGXP_GetIndex(1))
 #else
 #define addPrim(ot, p)		setaddr(p, getaddr(ot)), setaddr(ot, p)
@@ -333,8 +333,8 @@ typedef struct _RECT16 {
 
 #define DECLARE_P_ADDR \
 		uintptr_t addr; \
-		uint len : 16; \
-		uint pgxp_index : 16;
+		uint len : 8; \
+		uint pgxp_index : 24;	/* [mod] was len:16 + index:16; far city needs more than 65535 PGXP vertices */
 
 #define P_LEN		3		// 3 longs (addr is 8 bytes on 64-bit + 4 bytes len/pgxp_index)
 
@@ -342,8 +342,8 @@ typedef struct _RECT16 {
 
 #define DECLARE_P_ADDR \
 		uintptr_t addr; \
-		uint len : 16; \
-		uint pgxp_index : 16;
+		uint len : 8; \
+		uint pgxp_index : 24;	/* [mod] was len:16 + index:16; far city needs more than 65535 PGXP vertices */
 
 #define P_LEN		2		// 2 longs
 

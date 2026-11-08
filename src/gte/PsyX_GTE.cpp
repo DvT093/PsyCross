@@ -286,12 +286,12 @@ int Lm_H(long long value, int sf) {
 PGXPVector3D g_FP_SXYZ0; // direct access PGXP without table lookup
 PGXPVector3D g_FP_SXYZ1;
 PGXPVector3D g_FP_SXYZ2;
-ushort g_FP_SXYZ0Index = 0xffff;
-ushort g_FP_SXYZ1Index = 0xffff;
-ushort g_FP_SXYZ2Index = 0xffff;
+uint g_FP_SXYZ0Index = PGXP_INVALID_INDEX;
+uint g_FP_SXYZ1Index = PGXP_INVALID_INDEX;
+uint g_FP_SXYZ2Index = PGXP_INVALID_INDEX;
 
-PGXPVData g_pgxpCache[1 << sizeof(ushort)*8];
-ushort g_pgxpVertexIndex = 0;
+PGXPVData g_pgxpCache[PGXP_CACHE_SIZE];	// [mod] was 65536
+uint g_pgxpVertexIndex = 0;
 
 int g_pgxpTransformed = 0;
 
@@ -329,7 +329,7 @@ struct PGXPDiagStats {
 
 struct PGXPAddressEntry {
 	uintptr_t address;
-	ushort index;
+	uint index;
 	unsigned int generation;
 };
 
@@ -431,9 +431,9 @@ void PGXP_ClearCache()
 
 	memset(g_pgxpCache, 0xFF, sizeof(g_pgxpCache));
 	g_pgxpVertexIndex = 0;
-	g_FP_SXYZ0Index = 0xffff;
-	g_FP_SXYZ1Index = 0xffff;
-	g_FP_SXYZ2Index = 0xffff;
+	g_FP_SXYZ0Index = PGXP_INVALID_INDEX;
+	g_FP_SXYZ1Index = PGXP_INVALID_INDEX;
+	g_FP_SXYZ2Index = PGXP_INVALID_INDEX;
 
 	g_pgxpAddressGeneration++;
 	if (g_pgxpAddressGeneration == 0) {
@@ -442,7 +442,7 @@ void PGXP_ClearCache()
 	}
 }
 
-ushort PGXP_GetIndex(int checkTransform)
+uint PGXP_GetIndex(int checkTransform)
 {
 	if (!checkTransform || g_pgxpTransformed)
 	{
@@ -451,15 +451,15 @@ ushort PGXP_GetIndex(int checkTransform)
 		return g_pgxpVertexIndex;
 	}
 
-	return 0xFFFF;
+	return PGXP_INVALID_INDEX;
 }
 
-ushort PGXP_EmitCacheData(PGXPVData* newData)
+uint PGXP_EmitCacheData(PGXPVData* newData)
 {
-	ushort nextIndex = g_pgxpVertexIndex++;
+	if (g_pgxpVertexIndex >= PGXP_CACHE_SIZE - 1)
+		return PGXP_INVALID_INDEX;
 
-	if (nextIndex == 0xffff)
-		return 0xffff;
+	uint nextIndex = g_pgxpVertexIndex++;
 
 	if (PGXP_DiagEnabled())
 		g_pgxpDiagStats.emitted++;
@@ -477,9 +477,9 @@ static unsigned int PGXP_AddressHash(uintptr_t address)
 	return (unsigned int)value & PGXP_ADDRESS_TABLE_MASK;
 }
 
-void PGXP_RecordAddressIndex(const void* address, ushort index)
+void PGXP_RecordAddressIndex(const void* address, uint index)
 {
-	if (!address || index == 0xffff)
+	if (!address || index == PGXP_INVALID_INDEX)
 		return;
 
 	if (PGXP_DiagEnabled())
@@ -501,12 +501,12 @@ void PGXP_RecordAddressIndex(const void* address, ushort index)
 	}
 }
 
-ushort PGXP_GetAddressIndex(const void* address)
+uint PGXP_GetAddressIndex(const void* address)
 {
 	if (!address) {
 		if (PGXP_DiagEnabled())
 			g_pgxpDiagStats.addressMisses++;
-		return 0xffff;
+		return PGXP_INVALID_INDEX;
 	}
 
 	const uintptr_t key = (uintptr_t)address;
@@ -529,7 +529,7 @@ ushort PGXP_GetAddressIndex(const void* address)
 	if (PGXP_DiagEnabled())
 		g_pgxpDiagStats.addressMisses++;
 
-	return 0xffff;
+	return PGXP_INVALID_INDEX;
 }
 
 static void PGXP_ClearCacheDataOut(PGXPVData* out)
@@ -548,12 +548,12 @@ void PGXP_SetZOffsetScale(float offset, float scale)
 	g_pgxpZScale = scale;
 }
 
-int PGXP_GetCacheDataExact(PGXPVData* out, uint lookup, ushort indexhint)
+int PGXP_GetCacheDataExact(PGXPVData* out, uint lookup, uint indexhint)
 {
 	if (PGXP_DiagEnabled())
 		g_pgxpDiagStats.getCalls++;
 
-	if (indexhint != 0xFFFF && g_pgxpCache[indexhint].lookup == lookup)
+	if (indexhint < PGXP_CACHE_SIZE && g_pgxpCache[indexhint].lookup == lookup)
 	{
 		if (PGXP_DiagEnabled())
 			g_pgxpDiagStats.directHits++;
@@ -563,7 +563,7 @@ int PGXP_GetCacheDataExact(PGXPVData* out, uint lookup, ushort indexhint)
 	}
 
 	if (PGXP_DiagEnabled()) {
-		if (indexhint != 0xFFFF)
+		if (indexhint < PGXP_CACHE_SIZE)
 			g_pgxpDiagStats.directMismatches++;
 		g_pgxpDiagStats.misses++;
 	}
@@ -573,12 +573,12 @@ int PGXP_GetCacheDataExact(PGXPVData* out, uint lookup, ushort indexhint)
 }
 
 // sets copy of cached vertex data to out
-int PGXP_GetCacheData(PGXPVData* out, uint lookup, ushort indexhint)
+int PGXP_GetCacheData(PGXPVData* out, uint lookup, uint indexhint)
 {
 	if (PGXP_DiagEnabled())
 		g_pgxpDiagStats.getCalls++;
 
-	if (indexhint == 0xFFFF)
+	if (indexhint >= PGXP_CACHE_SIZE)
 	{
 		if (PGXP_DiagEnabled())
 			g_pgxpDiagStats.misses++;
@@ -600,17 +600,17 @@ int PGXP_GetCacheData(PGXPVData* out, uint lookup, ushort indexhint)
 		g_pgxpDiagStats.directMismatches++;
 
 	// index hint allows us to start from specific index
-	ushort index = max(0, int(indexhint) - 8);
+	uint index = (uint)max(0, int(indexhint) - 8);
 
 	for(int i = 0; i < 512; i++)
 	{
-		if (index == 0xffff)
-			index++;
+		if (index >= PGXP_CACHE_SIZE - 1)
+			break;
 
 		if (g_pgxpCache[index].lookup == lookup)
 		{
 			if (i > 256)
-				PsyX_Log_Warning("PGXP_GetCacheData lookup IS inefficient: hint: %d, start: %d, found: %d, cycles: %d\n", indexhint, ushort(indexhint - 8u), index, i);
+				PsyX_Log_Warning("PGXP_GetCacheData lookup IS inefficient: hint: %d, start: %d, found: %d, cycles: %d\n", indexhint, (uint)(indexhint - 8u), index, i);
 
 			if (PGXP_DiagEnabled()) {
 				g_pgxpDiagStats.fallbackHits++;

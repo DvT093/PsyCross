@@ -52,7 +52,7 @@ struct GPUDrawSplit
 	const char*		debugText;
 };
 
-#define MAX_DRAW_SPLITS	 16384	// [mod] was 4096
+#define MAX_DRAW_SPLITS	 65536	// [mod] was 4096
 
 GrVertex g_vertexBuffer[MAX_VERTEX_BUFFER_SIZE];
 GPUDrawSplit g_splits[MAX_DRAW_SPLITS];
@@ -133,7 +133,7 @@ void LineSwapSourceVerts(VERTTYPE*& p0, VERTTYPE*& p1, unsigned char*& c0, unsig
 	}
 }
 
-void MakeLineArray(GrVertex* vertex, VERTTYPE* p0, VERTTYPE* p1, ushort gteidx)
+void MakeLineArray(GrVertex* vertex, VERTTYPE* p0, VERTTYPE* p1, uint gteidx)
 {
 	const VERTTYPE dx = p1[0] - p0[0];
 	const VERTTYPE dy = p1[1] - p0[1];
@@ -182,18 +182,18 @@ void MakeLineArray(GrVertex* vertex, VERTTYPE* p0, VERTTYPE* p1, ushort gteidx)
 #if USE_PGXP
 static const float kPGXPMinPerspectiveZ = 0.25f;
 
-inline int FindVertexPGXP(PGXPVData* vd, VERTTYPE* p, ushort gteidx, int lookupOfs)
+inline int FindVertexPGXP(PGXPVData* vd, VERTTYPE* p, uint gteidx, int lookupOfs)
 {
 	uint lookup = PGXP_LOOKUP_VALUE(p[0], p[1]);
 	int hasData = 0;
 
 	if (g_cfg_pgxpTextureCorrection)
 	{
-		const ushort addressIndex = PGXP_GetAddressIndex(p);
-		if (addressIndex != 0xffff)
+		const uint addressIndex = PGXP_GetAddressIndex(p);
+		if (addressIndex != PGXP_INVALID_INDEX)
 			hasData = PGXP_GetCacheDataExact(vd, lookup, addressIndex);
 
-		if (!hasData && gteidx != 0xffff)
+		if (!hasData && gteidx != PGXP_INVALID_INDEX)
 			hasData = PGXP_GetCacheData(vd, lookup, gteidx + lookupOfs);
 	}
 
@@ -229,7 +229,7 @@ inline void ApplyVertexPGXP(GrVertex* v, const PGXPVData& vd, float ofsX, float 
 }
 #endif
 
-bool MakeVertexTriangle(GrVertex* vertex, VERTTYPE* p0, VERTTYPE* p1, VERTTYPE* p2, ushort gteidx)
+bool MakeVertexTriangle(GrVertex* vertex, VERTTYPE* p0, VERTTYPE* p1, VERTTYPE* p2, uint gteidx)
 {
 	assert(p0);
 	assert(p1);
@@ -269,7 +269,7 @@ bool MakeVertexTriangle(GrVertex* vertex, VERTTYPE* p0, VERTTYPE* p1, VERTTYPE* 
 	return false;
 }
 
-bool MakeVertexQuad(GrVertex* vertex, VERTTYPE* p0, VERTTYPE* p1, VERTTYPE* p2, VERTTYPE* p3, ushort gteidx)
+bool MakeVertexQuad(GrVertex* vertex, VERTTYPE* p0, VERTTYPE* p1, VERTTYPE* p2, VERTTYPE* p3, uint gteidx)
 {
 	assert(p0);
 	assert(p1);
@@ -315,7 +315,7 @@ bool MakeVertexQuad(GrVertex* vertex, VERTTYPE* p0, VERTTYPE* p1, VERTTYPE* p2, 
 	return false;
 }
 
-void MakeVertexRect(GrVertex* vertex, VERTTYPE* p0, short w, short h, ushort gteidx)
+void MakeVertexRect(GrVertex* vertex, VERTTYPE* p0, short w, short h, uint gteidx)
 {
 	assert(p0);
 
@@ -892,7 +892,7 @@ void ParsePrimitivesLinkedList(u_int* p, int singlePrimitive)
 		P_TAG* polyTag = reinterpret_cast<P_TAG*>(p);
 #if USE_PGXP && USE_EXTENDED_PRIM_POINTERS
 		// force PGXP off
-		polyTag->pgxp_index = 0xFFFF;
+		polyTag->pgxp_index = PGXP_INVALID_INDEX;
 #endif
 		ParsePrimitive(polyTag);
 
@@ -949,9 +949,9 @@ inline int IsNull(POLY_FT3* poly)
 static int ProcessFlatLines(P_TAG* polyTag)
 {
 #if USE_PGXP && USE_EXTENDED_PRIM_POINTERS
-	const u_short gteIndex = polyTag->pgxp_index;
+	const uint gteIndex = polyTag->pgxp_index;
 #else
-	const u_short gteIndex = 0xFFFF;
+	const uint gteIndex = PGXP_INVALID_INDEX;
 #endif
 
 	const bool shadeTexOn = true;
@@ -1110,9 +1110,9 @@ static int ProcessFlatLines(P_TAG* polyTag)
 static int ProcessGouraudLines(P_TAG* polyTag)
 {
 #if USE_PGXP && USE_EXTENDED_PRIM_POINTERS
-	const u_short gteIndex = polyTag->pgxp_index;
+	const uint gteIndex = polyTag->pgxp_index;
 #else
-	const u_short gteIndex = 0xFFFF;
+	const uint gteIndex = PGXP_INVALID_INDEX;
 #endif
 
 	const bool shadeTexOn = true;
@@ -1164,9 +1164,9 @@ static int ProcessGouraudLines(P_TAG* polyTag)
 static int ProcessFlatPoly(P_TAG* polyTag)
 {
 #if USE_PGXP && USE_EXTENDED_PRIM_POINTERS
-	const u_short gteIndex = polyTag->pgxp_index;
+	const uint gteIndex = polyTag->pgxp_index;
 #else
-	const u_short gteIndex = 0xFFFF;
+	const uint gteIndex = PGXP_INVALID_INDEX;
 #endif
 
 	const bool shadeTexOn = (polyTag->code & 1) == 0;
@@ -1267,9 +1267,9 @@ static int ProcessFlatPoly(P_TAG* polyTag)
 static int ProcessGouraudPoly(P_TAG* polyTag)
 {
 #if USE_PGXP && USE_EXTENDED_PRIM_POINTERS
-	const u_short gteIndex = polyTag->pgxp_index;
+	const uint gteIndex = polyTag->pgxp_index;
 #else
-	const u_short gteIndex = 0xFFFF;
+	const uint gteIndex = PGXP_INVALID_INDEX;
 #endif
 
 	const bool shadeTexOn = true;
@@ -1367,9 +1367,9 @@ static int ProcessGouraudPoly(P_TAG* polyTag)
 static int ProcessTileAndSprt(P_TAG* polyTag)
 {
 #if USE_PGXP && USE_EXTENDED_PRIM_POINTERS
-	const u_short gteIndex = polyTag->pgxp_index;
+	const uint gteIndex = polyTag->pgxp_index;
 #else
-	const u_short gteIndex = 0xFFFF;
+	const uint gteIndex = PGXP_INVALID_INDEX;
 #endif
 
 	// NOTE: TILE does not support switching shadeTex on real PSX

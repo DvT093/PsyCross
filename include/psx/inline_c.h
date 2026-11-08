@@ -27,10 +27,10 @@ extern int CFC2_S(int reg);
 extern int doCOP2(int op);
 
 #if USE_PGXP
-extern unsigned short g_FP_SXYZ0Index;
-extern unsigned short g_FP_SXYZ1Index;
-extern unsigned short g_FP_SXYZ2Index;
-extern void PGXP_RecordAddressIndex(const void* address, unsigned short index);
+extern unsigned int g_FP_SXYZ0Index;
+extern unsigned int g_FP_SXYZ1Index;
+extern unsigned int g_FP_SXYZ2Index;
+extern void PGXP_RecordAddressIndex(const void* address, unsigned int index);
 #endif
 
 #if defined(_LANGUAGE_C_PLUS_PLUS)||defined(__cplusplus)||defined(c_plusplus)
