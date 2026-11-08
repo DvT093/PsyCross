@@ -820,7 +820,10 @@ void DrawSplit(const GPUDrawSplit& split)
 	GR_SetOffscreenState(&split.drawenv.clip, !drawOnScreen);
 
 	GR_SetBlendMode(split.blendMode);
-	GR_EnableDepth(split.depthEnable);
+	// [mod] semi-transparent primitives (shadows, smoke, light glows) are drawn without
+	// the depth test, like on the PS1 (ordering table only); opaque geometry keeps the
+	// Z-buffer. Shadows lie on/below the road surface and otherwise lose against it.
+	GR_EnableDepth(split.depthEnable && split.blendMode == BM_NONE);
 
 	GR_DrawTriangles(split.startVertex, split.numVerts / 3);
 

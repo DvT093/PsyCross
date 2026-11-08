@@ -2256,3 +2256,9 @@ void GR_PopDebugLabel() {}
 void PsyX_GetPSXWidescreenMappedViewport(struct _RECT16* /*rect*/) {}
 
 #endif // RENDERER_VK
+
+// [mod] depth bias for semi-transparent decals: not implemented for Vulkan
+void GR_SetDepthBias(int enable)
+{
+	(void)enable;
+}

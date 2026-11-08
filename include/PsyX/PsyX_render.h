@@ -211,6 +211,7 @@ extern void			GR_SetBlendMode(BlendMode blendMode);
 extern void			GR_SetPolygonOffset(float ofs);
 extern void			GR_SetStencilMode(int drawPrim);
 extern void			GR_EnableDepth(int enable);
+extern void			GR_SetDepthBias(int enable);	// [mod] semi-transparent decals (shadows) over coplanar ground
 extern void			GR_SetScissorState(int enable);
 extern void			GR_SetOffscreenState(const RECT16* offscreenRect, int enable);
 extern void			GR_SetupClipMode(const RECT16* clipRect, int enable);

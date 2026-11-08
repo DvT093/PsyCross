@@ -253,6 +253,28 @@ void PBO_Download(GrPBO* pbo)
 
 	// glBindBuffer(GL_PIXEL_PACK_BUFFER, 0); /* just make sure we're not accidentilly using a PBO. */
 	// glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pbo->pixels);
+#if defined(__APPLE__) && defined(RENDERER_OGL)
+	// macOS: PBOs are disabled, but callers still read pbo->pixels.
+	// Do a synchronous read of the currently bound texture into a CPU buffer.
+	{
+		GLint tw = 0, th = 0;
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &tw);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &th);
+		int need = tw * th * 4;
+		if (need < 1024 * 1024 * 4) need = 1024 * 1024 * 4;
+		if (!pbo->pixels || pbo->nbytes < need)
+		{
+			free(pbo->pixels);
+			pbo->pixels = (unsigned char*)calloc(1, need);
+			pbo->nbytes = need;
+		}
+		if (tw > 0 && th > 0)
+		{
+			glPixelStorei(GL_PACK_ALIGNMENT, 1);
+			glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pbo->pixels);
+		}
+	}
+#endif
 #endif
 }
 
@@ -437,6 +459,7 @@ void GR_BeginScene()
 #else
 	glClearDepth(1.0f);
 #endif
+	GR_SetDepthBias(0);	// [mod] depth writes back on before clearing
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glClear(GL_STENCIL_BUFFER_BIT);
 #endif
@@ -1309,6 +1332,7 @@ void GR_Clear(int x, int y, int w, int h, unsigned char r, unsigned char g, unsi
 
 #if USE_OPENGL
 	glClearColor(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
+	GR_SetDepthBias(0);	// [mod]
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 #endif
 }
@@ -1402,6 +1426,13 @@ void GR_ReadFramebufferDataToVRAM()
 	int x, y, w, h;
 	if (!framebuffer_need_update)
 		return;
+
+#if defined(__APPLE__) && USE_OPENGL
+	// macOS: the GL context is only current on the render thread.
+	// Calls from the CD spooler thread are deferred to the next frame.
+	if (SDL_GL_GetCurrentContext() == NULL)
+		return;
+#endif
 
 	framebuffer_need_update = 0;
 
@@ -1639,6 +1670,13 @@ void GR_UpdateVRAM()
 	if (!vram_need_update)
 		return;
 
+#if defined(__APPLE__) && USE_OPENGL
+	// macOS: the GL context is only current on the render thread.
+	// Calls from the CD spooler thread are deferred to the next frame.
+	if (SDL_GL_GetCurrentContext() == NULL)
+		return;
+#endif
+
 	vram_need_update = 0;
 
 #if USE_OPENGL
@@ -1678,6 +1716,33 @@ void GR_EnableDepth(int enable)
 		glEnable(GL_DEPTH_TEST);
 	else
 		glDisable(GL_DEPTH_TEST);
+#endif
+}
+
+// [mod] semi-transparent primitives (shadows, decals) lie exactly on the ground;
+// with the Z-buffer on they lose against it. Pull them slightly towards the camera
+// and don't let them write depth.
+void GR_SetDepthBias(int enable)
+{
+	static int prev = -1;
+
+	if (prev == enable)
+		return;
+
+	prev = enable;
+
+#if USE_OPENGL
+	if (enable)
+	{
+		glEnable(GL_POLYGON_OFFSET_FILL);
+		glPolygonOffset(-2.0f, -64.0f);
+		glDepthMask(GL_FALSE);
+	}
+	else
+	{
+		glDisable(GL_POLYGON_OFFSET_FILL);
+		glDepthMask(GL_TRUE);
+	}
 #endif
 }
 
