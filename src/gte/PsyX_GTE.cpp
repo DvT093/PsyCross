@@ -333,7 +333,7 @@ struct PGXPAddressEntry {
 	unsigned int generation;
 };
 
-#define PGXP_ADDRESS_TABLE_BITS 18
+#define PGXP_ADDRESS_TABLE_BITS 20	// [mod] was 18; far city stores many more vertex addresses per frame
 #define PGXP_ADDRESS_TABLE_SIZE (1 << PGXP_ADDRESS_TABLE_BITS)
 #define PGXP_ADDRESS_TABLE_MASK (PGXP_ADDRESS_TABLE_SIZE - 1)
 
@@ -471,10 +471,10 @@ uint PGXP_EmitCacheData(PGXPVData* newData)
 
 static unsigned int PGXP_AddressHash(uintptr_t address)
 {
-	uintptr_t value = address >> 2;
-	value ^= value >> 11;
-	value ^= value >> 23;
-	return (unsigned int)value & PGXP_ADDRESS_TABLE_MASK;
+	// [mod] Fibonacci hash: primitives are contiguous in memory, the old xor-shift hash
+	// clustered them into long linear-probe chains (most of the frame time with the far city)
+	unsigned long long value = (unsigned long long)(address >> 1) * 0x9E3779B97F4A7C15ull;
+	return (unsigned int)(value >> (64 - PGXP_ADDRESS_TABLE_BITS));
 }
 
 void PGXP_RecordAddressIndex(const void* address, uint index)

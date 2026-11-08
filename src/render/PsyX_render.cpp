@@ -1488,7 +1488,7 @@ void GR_SetOffscreenState(const RECT16* offscreenRect, int enable)
 		// these constants below are guessed
 		const float perspectiveFOV = 0.9265f;
 		const float perspectiveZNear = 0.25f;
-		const float perspectiveZFar = 1000.0f;
+		const float perspectiveZFar = 8000.0f;	// [mod] was 1000 (= ~128000 game units, ~60 cells); far city draws up to ~160 cells
 
 		const float emuScreenAspect = (float)(g_windowWidth) / (float)(g_windowHeight);
 

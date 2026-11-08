@@ -716,6 +716,8 @@ void TriangulateQuad()
 
 //------------------------------------------------------------------------------------------------------------------------
 
+int g_splitDiagDepth = 0, g_splitDiagFmt = 0;	// [mod] split diagnostics
+
 static void AddSplit(bool semiTrans, bool textured)
 {
 	int tpage = activeDrawEnv.tpage;
@@ -738,7 +740,8 @@ static void AddSplit(bool semiTrans, bool textured)
 		curSplit.texFormat == texFormat &&
 		curSplit.textureId == textureId &&
 		curSplit.drawPrimMode == g_DrawPrimMode &&
-		curSplit.depthEnable == depthEnable &&
+		// [mod] depth is handled by SetCurrentSplitDepth; comparing it here
+													// made every polygon a new split (depth flipped false/true per poly)
 		curSplit.drawenv.clip.x == activeDrawEnv.clip.x &&
 		curSplit.drawenv.clip.y == activeDrawEnv.clip.y &&
 		curSplit.drawenv.clip.w == activeDrawEnv.clip.w &&
@@ -750,6 +753,7 @@ static void AddSplit(bool semiTrans, bool textured)
 	}
 
 	curSplit.numVerts = g_vertexIndex - curSplit.startVertex;
+	g_splitDiagFmt++;
 
 	if (g_splitIndex + 1 >= MAX_DRAW_SPLITS)
 	{
@@ -762,7 +766,7 @@ static void AddSplit(bool semiTrans, bool textured)
 	split.texFormat = texFormat;
 	split.textureId = textureId;
 	split.drawPrimMode = g_DrawPrimMode;
-	split.depthEnable = depthEnable;
+	split.depthEnable = curSplit.depthEnable;	// [mod] keep the current depth state (was always false)
 	split.drawenv = activeDrawEnv;
 	split.dispenv = activeDispEnv;
 	split.debugText = currentSplitDebugText;
@@ -780,6 +784,8 @@ static void SetCurrentSplitDepth(bool depthEnable)
 
 	if (curSplit.depthEnable == depthEnable)
 		return;
+
+	g_splitDiagDepth++;
 
 	if (curSplit.startVertex == g_vertexIndex)
 	{
@@ -838,6 +844,15 @@ extern int g_dbg_polygonSelected;
 //
 void DrawAllSplits()
 {
+	{
+		static int frame = 0;
+		static int enabled = -1;
+		if (enabled < 0) enabled = getenv("REDRIVER2_SPLIT_DIAG") != NULL;
+		if (enabled && (++frame % 30) == 0)
+			printf("SPLITDIAG splits=%d verts=%d depthSwitches=%d stateSwitches=%d\n", g_splitIndex, g_vertexIndex, g_splitDiagDepth, g_splitDiagFmt);
+		g_splitDiagDepth = g_splitDiagFmt = 0;
+	}
+
 #ifdef _DEBUG
 	if (g_dbg_emulatorPaused)
 	{
@@ -965,6 +980,7 @@ static int ProcessFlatLines(P_TAG* polyTag)
 		LINE_F2* poly = (LINE_F2*)polyTag;
 
 		AddSplit(semiTrans, false);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		VERTTYPE* p0 = &poly->x0;
 		VERTTYPE* p1 = &poly->x1;
@@ -991,6 +1007,7 @@ static int ProcessFlatLines(P_TAG* polyTag)
 		LINE_F3* poly = (LINE_F3*)polyTag;
 
 		AddSplit(semiTrans, false);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		{
 			VERTTYPE* p0 = &poly->x0;
@@ -1040,6 +1057,7 @@ static int ProcessFlatLines(P_TAG* polyTag)
 		LINE_F4* poly = (LINE_F4*)polyTag;
 
 		AddSplit(semiTrans, false);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		{
 			VERTTYPE* p0 = &poly->x0;
@@ -1126,6 +1144,7 @@ static int ProcessGouraudLines(P_TAG* polyTag)
 		LINE_G2* poly = (LINE_G2*)polyTag;
 
 		AddSplit(semiTrans, false);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		VERTTYPE* p0 = &poly->x0;
 		VERTTYPE* p1 = &poly->x1;
@@ -1383,6 +1402,7 @@ static int ProcessTileAndSprt(P_TAG* polyTag)
 		TILE* poly = (TILE*)polyTag;
 
 		AddSplit(semiTrans, false);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
 		MakeVertexRect(firstVertex, &poly->x0, poly->w, poly->h, gteIndex);
@@ -1403,6 +1423,7 @@ static int ProcessTileAndSprt(P_TAG* polyTag)
 		SPRT* poly = (SPRT*)polyTag;
 
 		AddSplit(semiTrans, true);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
 		MakeVertexRect(firstVertex, &poly->x0, poly->w, poly->h, gteIndex);
@@ -1423,6 +1444,7 @@ static int ProcessTileAndSprt(P_TAG* polyTag)
 		TILE_1* poly = (TILE_1*)polyTag;
 
 		AddSplit(semiTrans, false);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
 		MakeVertexRect(firstVertex, &poly->x0, 1, 1, gteIndex);
@@ -1443,6 +1465,7 @@ static int ProcessTileAndSprt(P_TAG* polyTag)
 		TILE_8* poly = (TILE_8*)polyTag;
 
 		AddSplit(semiTrans, false);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
 		MakeVertexRect(firstVertex, &poly->x0, 8, 8, gteIndex);
@@ -1463,6 +1486,7 @@ static int ProcessTileAndSprt(P_TAG* polyTag)
 		SPRT_8* poly = (SPRT_8*)polyTag;
 
 		AddSplit(semiTrans, true);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
 		MakeVertexRect(firstVertex, &poly->x0, 8, 8, gteIndex);
@@ -1483,6 +1507,7 @@ static int ProcessTileAndSprt(P_TAG* polyTag)
 		TILE_16* poly = (TILE_16*)polyTag;
 
 		AddSplit(semiTrans, false);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
 		MakeVertexRect(firstVertex, &poly->x0, 16, 16, gteIndex);
@@ -1503,6 +1528,7 @@ static int ProcessTileAndSprt(P_TAG* polyTag)
 		SPRT_16* poly = (SPRT_16*)polyTag;
 
 		AddSplit(semiTrans, true);
+		SetCurrentSplitDepth(false);	// [mod] lines/sprites never depth-test
 
 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
 		MakeVertexRect(firstVertex, &poly->x0, 16, 16, gteIndex);
