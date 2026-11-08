@@ -46,13 +46,13 @@ struct GPUDrawSplit
 
 	bool			depthEnable;
 
-	u_short			startVertex;
-	u_short			numVerts;
+	int				startVertex;	// [mod] was u_short
+	int				numVerts;		// [mod] was u_short
 
 	const char*		debugText;
 };
 
-#define MAX_DRAW_SPLITS	 4096
+#define MAX_DRAW_SPLITS	 16384	// [mod] was 4096
 
 GrVertex g_vertexBuffer[MAX_VERTEX_BUFFER_SIZE];
 GPUDrawSplit g_splits[MAX_DRAW_SPLITS];

@@ -123,7 +123,7 @@
 #define TPAGE_WIDTH		(256)
 #define TPAGE_HEIGHT	(256)
 
-#define MAX_VERTEX_BUFFER_SIZE	(1 << (sizeof(ushort) * 8))
+#define MAX_VERTEX_BUFFER_SIZE	(1 << 18)	// [mod] was 65536 (ushort); busier streets need more
 
 #pragma pack(push,1)
 typedef struct
