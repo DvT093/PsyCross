@@ -782,6 +782,8 @@ char PsyX_BeginScene()
 			const int mode_frequency = g_vmode == MODE_NTSC ? VBLANK_FREQUENCY_NTSC : VBLANK_FREQUENCY_PAL;
 			if (curMode.refresh_rate < mode_frequency)
 				swapInterval--;
+			else if (curMode.refresh_rate < mode_frequency * 2 && swapInterval > 1)
+				swapInterval = 1; // [mod] 60 Hz screen: the game's own limiter already holds 30 fps; waiting 2 vblanks on top made it 20 fps
 		}
 
 		if (swapInterval < 0)
