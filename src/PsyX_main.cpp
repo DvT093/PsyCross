@@ -156,18 +156,24 @@ static void PsyX_PollVBlankFromMainThread(void)
 {
 	const double timestep = g_vmode == MODE_NTSC ? FIXED_TIME_STEP_NTSC : FIXED_TIME_STEP_PAL;
 
-	// Catch up: fire one callback per missed timestep
-	while (1)
-	{
-		const double vblDelta = Util_GetHPCTime(&g_vblTimer, 0);
-		if (vblDelta < timestep)
-			break;
+	// [mod] Catch up: fire one callback per elapsed timestep. The timer used to be reset after
+	// every callback, so a poll only ever fired one and the rest of the elapsed time was lost:
+	// with few polls per second (60 fps loop, on foot) the music (XM_Update) nearly stopped.
+	static double nextVbl = -1.0;
+	const double now = Util_GetHPCTime(&g_vblTimer, 0);
+	int fired = 0;
 
+	if (nextVbl < 0.0 || now - nextVbl > 0.25)	// first call or after a long stall (loading): resync, no burst
+		nextVbl = now;
+
+	while (now >= nextVbl && fired < 16)
+	{
 		if (vsync_callback)
 			vsync_callback();
 
 		g_psxSysCounters[PsxCounter_VBLANK]++;
-		Util_GetHPCTime(&g_vblTimer, 1);
+		nextVbl += timestep;
+		fired++;
 	}
 }
 
