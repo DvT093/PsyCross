@@ -295,11 +295,12 @@ int PsyX_LookupKeyboardMapping(const char* str, int default_value)
 		}
 
 		// [mod] SDL3 (via sdl2-compat) renames the GUI keys on macOS once video is up
-		// ("Left GUI" -> "Left Command"), so the loop above misses the SDL2 names. Accept both.
+		// ("Left GUI" -> "Left Command", "Left Alt" -> "Left Option"), so the loop above misses the SDL2 names. Accept both.
 		static const struct { const char* name; int sc; } aliases[] = {
 			{ "Left GUI", SDL_SCANCODE_LGUI }, { "Left Command", SDL_SCANCODE_LGUI }, { "Left Cmd", SDL_SCANCODE_LGUI },
 			{ "Right GUI", SDL_SCANCODE_RGUI }, { "Right Command", SDL_SCANCODE_RGUI }, { "Right Cmd", SDL_SCANCODE_RGUI },
-			{ "Left Option", SDL_SCANCODE_LALT }, { "Right Option", SDL_SCANCODE_RALT },
+			{ "Left Alt", SDL_SCANCODE_LALT }, { "Left Option", SDL_SCANCODE_LALT },
+			{ "Right Alt", SDL_SCANCODE_RALT }, { "Right Option", SDL_SCANCODE_RALT },
 		};
 
 		for (i = 0; i < (int)(sizeof(aliases) / sizeof(aliases[0])); i++)

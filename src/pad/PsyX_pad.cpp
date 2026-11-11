@@ -361,6 +361,83 @@ void PsyX_Pad_UpdateGameControllerInput(SDL_GameController* cont, LPPADRAW pad)
 	pad->analog[3] = (leftY / 256) + 128;
 }
 
+
+#ifdef __APPLE__
+#include <CoreGraphics/CoreGraphics.h>
+
+// [mod] macOS: releasing Command makes SDL3 (via sdl2-compat) also drop keys that are still
+// held (e.g. the steering arrow while Cmd = fast steer). Ask the hardware for the real state.
+static int PsyX_MacVirtualKey(int sc)
+{
+	if (sc >= SDL_SCANCODE_A && sc <= SDL_SCANCODE_Z)
+	{
+		static const unsigned char letters[26] = { 0,11,8,2,14,3,5,4,34,38,40,37,46,45,31,35,12,15,1,17,32,9,13,7,16,6 };
+		return letters[sc - SDL_SCANCODE_A];
+	}
+
+	if (sc >= SDL_SCANCODE_1 && sc <= SDL_SCANCODE_0)
+	{
+		static const unsigned char digits[10] = { 18,19,20,21,23,22,26,28,25,29 };
+		return digits[sc - SDL_SCANCODE_1];
+	}
+
+	switch (sc)
+	{
+		case SDL_SCANCODE_RETURN: return 36;
+		case SDL_SCANCODE_ESCAPE: return 53;
+		case SDL_SCANCODE_BACKSPACE: return 51;
+		case SDL_SCANCODE_TAB: return 48;
+		case SDL_SCANCODE_SPACE: return 49;
+		case SDL_SCANCODE_MINUS: return 27;
+		case SDL_SCANCODE_EQUALS: return 24;
+		case SDL_SCANCODE_LEFTBRACKET: return 33;
+		case SDL_SCANCODE_RIGHTBRACKET: return 30;
+		case SDL_SCANCODE_BACKSLASH: return 42;
+		case SDL_SCANCODE_SEMICOLON: return 41;
+		case SDL_SCANCODE_APOSTROPHE: return 39;
+		case SDL_SCANCODE_GRAVE: return 50;
+		case SDL_SCANCODE_COMMA: return 43;
+		case SDL_SCANCODE_PERIOD: return 47;
+		case SDL_SCANCODE_SLASH: return 44;
+		case SDL_SCANCODE_RIGHT: return 124;
+		case SDL_SCANCODE_LEFT: return 123;
+		case SDL_SCANCODE_DOWN: return 125;
+		case SDL_SCANCODE_UP: return 126;
+		case SDL_SCANCODE_LCTRL: return 59;
+		case SDL_SCANCODE_LSHIFT: return 56;
+		case SDL_SCANCODE_LALT: return 58;
+		case SDL_SCANCODE_LGUI: return 55;
+		case SDL_SCANCODE_RCTRL: return 62;
+		case SDL_SCANCODE_RSHIFT: return 60;
+		case SDL_SCANCODE_RALT: return 61;
+		case SDL_SCANCODE_RGUI: return 54;
+	}
+
+	return -1;
+}
+#endif
+
+static int PsyX_KeyDown(int sc)
+{
+	if (sc <= SDL_SCANCODE_UNKNOWN || sc >= SDL_NUM_SCANCODES)
+		return 0;
+
+	if (g_sdlKeyboardState[sc])
+		return 1;
+
+#ifdef __APPLE__
+	// only while our window has the keyboard, so keys typed in other apps never steer the car
+	if (SDL_GetKeyboardFocus() != NULL)
+	{
+		int vk = PsyX_MacVirtualKey(sc);
+		if (vk >= 0 && CGEventSourceKeyState(kCGEventSourceStateHIDSystemState, (CGKeyCode)vk))
+			return 1;
+	}
+#endif
+
+	return 0;
+}
+
 u_short PsyX_Pad_UpdateKeyboardInput()
 {
 	u_short ret = 0xFFFF;
@@ -373,52 +450,52 @@ u_short PsyX_Pad_UpdateKeyboardInput()
 
 	const PsyXKeyboardMapping& mapping = g_cfg_keyboardMapping;
 
-	if (g_sdlKeyboardState[mapping.kc_square])//Square
+	if (PsyX_KeyDown(mapping.kc_square)) //Square
 		ret &= ~0x8000;
 
-	if (g_sdlKeyboardState[mapping.kc_circle])//Circle
+	if (PsyX_KeyDown(mapping.kc_circle)) //Circle
 		ret &= ~0x2000;
 
-	if (g_sdlKeyboardState[mapping.kc_triangle])//Triangle
+	if (PsyX_KeyDown(mapping.kc_triangle)) //Triangle
 		ret &= ~0x1000;
 
-	if (g_sdlKeyboardState[mapping.kc_cross])//Cross
+	if (PsyX_KeyDown(mapping.kc_cross)) //Cross
 		ret &= ~0x4000;
 
-	if (g_sdlKeyboardState[mapping.kc_l1])//L1
+	if (PsyX_KeyDown(mapping.kc_l1)) //L1
 		ret &= ~0x400;
 
-	if (g_sdlKeyboardState[mapping.kc_l2])//L2
+	if (PsyX_KeyDown(mapping.kc_l2)) //L2
 		ret &= ~0x100;
 
-	if (g_sdlKeyboardState[mapping.kc_l3])//L3
+	if (PsyX_KeyDown(mapping.kc_l3)) //L3
 		ret &= ~0x2;
 
-	if (g_sdlKeyboardState[mapping.kc_r1])//R1
+	if (PsyX_KeyDown(mapping.kc_r1)) //R1
 		ret &= ~0x800;
 
-	if (g_sdlKeyboardState[mapping.kc_r2])//R2
+	if (PsyX_KeyDown(mapping.kc_r2)) //R2
 		ret &= ~0x200;
 
-	if (g_sdlKeyboardState[mapping.kc_r3])//R3
+	if (PsyX_KeyDown(mapping.kc_r3)) //R3
 		ret &= ~0x4;
 
-	if (g_sdlKeyboardState[mapping.kc_dpad_up])//UP
+	if (PsyX_KeyDown(mapping.kc_dpad_up)) //UP
 		ret &= ~0x10;
 
-	if (g_sdlKeyboardState[mapping.kc_dpad_down])//DOWN
+	if (PsyX_KeyDown(mapping.kc_dpad_down)) //DOWN
 		ret &= ~0x40;
 
-	if (g_sdlKeyboardState[mapping.kc_dpad_left])//LEFT
+	if (PsyX_KeyDown(mapping.kc_dpad_left)) //LEFT
 		ret &= ~0x80;
 
-	if (g_sdlKeyboardState[mapping.kc_dpad_right])//RIGHT
+	if (PsyX_KeyDown(mapping.kc_dpad_right)) //RIGHT
 		ret &= ~0x20;
 
-	if (g_sdlKeyboardState[mapping.kc_select])//SELECT
+	if (PsyX_KeyDown(mapping.kc_select)) //SELECT
 		ret &= ~0x1;
 
-	if (g_sdlKeyboardState[mapping.kc_start])//START
+	if (PsyX_KeyDown(mapping.kc_start)) //START
 		ret &= ~0x8;
 
 	return ret;
